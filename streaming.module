@@ -1,0 +1,48 @@
+<?php
+
+/**
+ * Implements hook_cron().
+ */
+
+use Aws\S3\S3Client;
+use GuzzleHttp\Client as GuzzleClient;
+
+
+function custom_s3_backup_cron() {
+
+  // GCS signed URL
+$signedUrl = ''; // Replace with your signed URL
+
+// Initialize Guzzle client for streaming
+$guzzleClient = new GuzzleClient();
+
+// Initialize S3 client
+$s3Client = new S3Client([
+    'version' => 'latest',
+    'region'  => 'eu-west-2', // Replace with your S3 region
+    'credentials' => [
+        'key'    => '',    // Replace with your AWS key
+        'secret' => '', // Replace with your AWS secret
+    ],
+]);
+
+// Create a stream from GCS
+$stream = $guzzleClient->get($signedUrl, ['stream' => true])->getBody();
+
+// Upload to S3 directly from the stream
+try {
+    $result = $s3Client->upload(
+        'pantheon-backup-columbia', // Replace with your S3 bucket name
+        'path/in/s3/crowley.sql.gz', // Replace with the desired S3 key
+        $stream,
+        'private' // Or 'private' depending on your needs
+    );
+
+    echo "File uploaded to S3 successfully.";
+} catch (Aws\Exception\AwsException $e) {
+    echo "S3 upload error: " . $e->getMessage();
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage();
+}
+
+}
